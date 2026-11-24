@@ -1,0 +1,9 @@
+# Keep paper PDFs out of the public repo (they are usually copyrighted)
+papers/*.pdf
+papers/**/*.pdf
+
+# Uncomment to keep your notes/data private too
+# research-data.json
+
+.DS_Store
+Thumbs.db

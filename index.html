@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Connector</title>
+<style>
+:root{
+  --bg:#0e1320; --bg2:#141b2b; --panel:#182034; --panel2:#1e2840; --line:#2a3552;
+  --text:#e9edf6; --muted:#95a1bc; --accent:#6ea8ff; --paper:#f2b45a; --danger:#ff7a7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+button{background:#22304d;border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+button:hover{background:#2b3c62}
+button.primary{background:var(--accent);color:#0a1222;border-color:var(--accent);font-weight:600}
+button.primary:hover{filter:brightness(1.08)}
+button.danger{background:transparent;color:var(--danger);border-color:#5a2c36}
+button.danger:hover{background:#3a1c24}
+button.small{padding:4px 9px;font-size:12px}
+input[type=text],textarea,select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+input[type=text]:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px}
+
+/* Header */
+header{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:var(--bg2);border-bottom:1px solid var(--line);z-index:40}
+.brand{font-weight:700;font-size:16px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.brand .dot{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#cfe2ff,var(--accent))}
+.search{position:relative;flex:1;max-width:520px}
+.search input{padding-left:34px}
+.search .ico{position:absolute;left:11px;top:8px;color:var(--muted);pointer-events:none}
+.results{position:absolute;top:42px;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  max-height:65vh;overflow:auto;display:none;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.results.show{display:block}
+.res{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.res:last-child{border-bottom:0}
+.res:hover,.res.sel{background:#243457}
+.res .k{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.res .k.paper{color:var(--paper)}
+.res .n{font-weight:600}
+.res .p{font-size:12px;color:var(--muted)}
+.res .s{font-size:12px;color:#c9d2e6;margin-top:2px}
+.res mark{background:#5b4a1d;color:#ffe1a6;border-radius:3px;padding:0 1px}
+.spacer{flex:1}
+.status{font-size:12px;color:var(--muted);white-space:nowrap}
+.status.warn{color:var(--paper)}
+.menuWrap{position:relative}
+.menu{position:absolute;right:0;top:42px;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:260px;
+  padding:6px;display:none;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.menu.show{display:block}
+.menu button{display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 10px}
+.menu button:hover{background:#243457}
+.menu small{display:block;color:var(--muted);font-size:11.5px;padding:2px 10px 6px}
+.menu hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+
+/* Stage */
+#stageWrap{position:fixed;top:56px;left:0;bottom:0;right:0;transition:right .3s}
+body.panelOpen #stageWrap{right:400px}
+#stage{position:absolute;inset:0;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 45%,#16203a 0%,var(--bg) 70%)}
+#lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#lines line{stroke:#3a4a72;stroke-width:1.5;stroke-dasharray:3 5;opacity:0;transition:opacity .5s .25s}
+#lines line.paperLine{stroke:#6b5a34}
+#lines.show line{opacity:1}
+#crumbs{position:absolute;top:12px;left:14px;right:14px;z-index:5;display:flex;flex-wrap:wrap;gap:2px;align-items:center;font-size:13px}
+#crumbs a{color:var(--muted);cursor:pointer;padding:3px 7px;border-radius:6px;text-decoration:none}
+#crumbs a:hover{background:#22304d;color:var(--text)}
+#crumbs a.cur{color:var(--text);font-weight:600}
+#crumbs .sep{color:#4a5675}
+
+.bubble{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:12px;cursor:pointer;user-select:none;color:#0b1222;border-radius:50%;
+  transform:translate(-50%,-50%) scale(1);
+  transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),transform .35s cubic-bezier(.2,.8,.2,1),opacity .4s,box-shadow .2s;
+  background:radial-gradient(circle at 32% 28%,color-mix(in srgb,var(--c) 45%,white) 0%,var(--c) 58%,color-mix(in srgb,var(--c) 78%,black) 100%);
+  box-shadow:0 10px 28px rgba(0,0,0,.4),inset 0 -6px 14px rgba(0,0,0,.12)}
+.bubble:hover{transform:translate(-50%,-50%) scale(1.07);z-index:4;box-shadow:0 14px 36px rgba(0,0,0,.5),0 0 0 3px rgba(255,255,255,.25)}
+.bubble.enter{transform:translate(-50%,-50%) scale(.15);opacity:0}
+.bubble .t{font-weight:650;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow-wrap:break-word;hyphens:auto}
+.bubble .m{font-size:.72em;opacity:.75;margin-top:5px;font-weight:500}
+.bubble.center{z-index:2;box-shadow:0 0 0 10px rgba(255,255,255,.05),0 0 0 22px rgba(255,255,255,.025),0 16px 40px rgba(0,0,0,.5)}
+.bubble.center .t{-webkit-line-clamp:5}
+.bubble.center .edit{position:absolute;bottom:13%;font-size:.62em;opacity:.65;font-weight:600}
+.bubble.paper{border-radius:16px;--c:#f6e6c4;background:linear-gradient(160deg,#fff6e3,#f1dcae);
+  border-left:6px solid var(--paper);padding:10px 10px 10px 12px;text-align:left;align-items:flex-start}
+.bubble.paper .t{-webkit-line-clamp:3;font-weight:650}
+.bubble.paper .why{font-size:.74em;margin-top:4px;color:#5a4316;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.bubble.paper .m{margin-top:4px}
+.bubble.sel{box-shadow:0 0 0 3px #fff,0 14px 36px rgba(0,0,0,.5)}
+.empty{position:absolute;transform:translateX(-50%);color:var(--muted);text-align:center;width:340px;font-size:13px}
+
+#toolbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;z-index:6;
+  background:rgba(20,27,43,.85);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:14px;padding:7px}
+#toolbar button{border-radius:10px}
+.legend{position:absolute;right:14px;bottom:20px;font-size:12px;color:var(--muted);display:flex;gap:14px;z-index:5}
+.legend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px}
+.legend .lt{border-radius:50%;background:#8fb8ff}
+.legend .lp{border-radius:3px;background:#f1dcae;border-left:3px solid var(--paper)}
+
+/* Panel */
+#panel{position:fixed;top:56px;right:0;bottom:0;width:400px;background:var(--panel);border-left:1px solid var(--line);
+  transform:translateX(100%);transition:transform .3s;z-index:30;display:flex;flex-direction:column}
+body.panelOpen #panel{transform:none}
+#panel .ph{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+#panel .ph h2{margin:0;font-size:15px;flex:1}
+#panel .ph .tag{font-size:10px;letter-spacing:.6px;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:#22304d;color:var(--muted)}
+#panel .ph .tag.paper{background:#3d321a;color:var(--paper)}
+#panel .pb{padding:14px 16px 30px;overflow:auto;flex:1}
+.field{display:block;margin-bottom:12px}
+.field>span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field small{display:block;color:var(--muted);font-size:11.5px;margin-top:4px}
+.field.key>span{color:var(--paper)}
+.field.key textarea{border-color:#6b5a34;background:#1d1a12}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.section h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+.loc{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:7px}
+.loc .lp{font-size:12px;color:var(--accent);cursor:pointer}
+.loc .lp:hover{text-decoration:underline}
+.loc .ln{font-size:12.5px;margin-top:3px;color:#d8deeb}
+.loc.here{border-color:#6b5a34}
+.libItem{padding:9px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;cursor:pointer;background:var(--panel2)}
+.libItem:hover{border-color:var(--accent)}
+.libItem .n{font-weight:600}
+.libItem .p{font-size:12px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px;margin:8px 0}
+.banner{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:45;background:#2b2412;border:1px solid #6b5a34;
+  color:#ffe1a6;border-radius:10px;padding:8px 10px 8px 14px;display:none;align-items:center;gap:10px;font-size:13px}
+.banner.show{display:flex}
+@media (max-width:820px){
+  body.panelOpen #stageWrap{right:0}
+  #panel{width:100%}
+  .brand .txt,.legend{display:none}
+}
+@media (max-width:600px){ .status{display:none} header{gap:8px;padding:0 10px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><span class="txt">Research Connector</span></div>
+  <div class="search">
+    <span class="ico">⌕</span>
+    <input id="q" type="text" placeholder="Search topics, findings, papers, notes…  ( / )" autocomplete="off">
+    <div id="results" class="results"></div>
+  </div>
+  <div class="spacer"></div>
+  <span id="status" class="status"></span>
+  <div class="menuWrap">
+    <button id="fileBtn">Data ▾</button>
+    <div id="menu" class="menu">
+      <button data-act="saveAs">💾 Save to a data file…</button>
+      <button data-act="openFile">📂 Open a data file…</button>
+      <small>Chrome/Edge: once a data file is chosen, every change is saved into it automatically.</small>
+      <hr>
+      <button data-act="export">⬇ Export backup (.json)</button>
+      <button data-act="import">⬆ Import backup (.json)</button>
+      <hr>
+      <button data-act="reset">↺ Start over (clear everything)</button>
+    </div>
+  </div>
+  <input id="importInput" type="file" accept=".json,application/json" hidden>
+</header>
+
+<div id="banner" class="banner"><span id="bannerText"></span><button id="bannerBtn" class="small primary"></button><button id="bannerX" class="small">✕</button></div>
+
+<div id="stageWrap">
+  <div id="stage">
+    <svg id="lines"></svg>
+    <nav id="crumbs"></nav>
+  </div>
+  <div id="toolbar">
+    <button id="addTopic">＋ Topic / finding</button>
+    <button id="addPaper">＋ Paper here</button>
+    <button id="library">📚 All papers</button>
+  </div>
+  <div class="legend"><span><i class="lt"></i>Topic / finding</span><span><i class="lp"></i>Paper</span></div>
+</div>
+
+<aside id="panel">
+  <div class="ph"><span id="pTag" class="tag"></span><h2 id="pTitle"></h2><button id="pClose" class="small">✕</button></div>
+  <div id="pBody" class="pb"></div>
+</aside>
+
+<input id="pdfPicker" type="file" accept=".pdf,application/pdf" hidden>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === false || v == null) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'value') e.value = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) {
+    if (c == null || c === false) continue;
+    e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return e;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PALETTE = ['#8fb8ff', '#86e0c0', '#c4a8ff', '#ff9fb8', '#9ad8f0', '#b9e78a', '#ffb3e6', '#a9b8ff', '#7fe3e3', '#d6c3ff'];
+function colorOf(id) {
+  if (id === 'root') return '#6ea8ff';
+  let x = 0; for (const ch of id) x = (x * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[x % PALETTE.length];
+}
+
+/* ---------- data ---------- */
+const LS_KEY = 'research-connector-data-v1';
+let db, cur = 'root', panelState = null, fileHandle = null, saveTimer = null;
+
+function seed() {
+  const d = { app: 'research-connector', version: 1, rootId: 'root', nodes: {}, papers: {} };
+  const mk = (name, parent, desc = '') => {
+    const id = parent ? uid() : 'root';
+    d.nodes[id] = { id, name, desc, parent, children: [], links: [] };
+    if (parent) d.nodes[parent].children.push(id);
+    return id;
+  };
+  const root = mk('My Research', null, 'This is the top of your inventory. Click a bubble to go inside it.');
+  const vr = mk('Virtual Reality (VR)', root, 'Everything I read about VR.');
+  const imp = mk('What improves learning in VR', vr, 'Design choices that help people learn more in VR.');
+  const trig = mk('Interaction (e.g. pressing the trigger)', imp, 'Active input with the controller → more engagement and learning.');
+  mk('Presence & immersion', imp);
+  mk('Problems with VR (sickness, cost…)', vr);
+  const pid = uid();
+  d.papers[pid] = {
+    id: pid, title: 'Example paper (replace with one of yours)', authors: 'Author A, Author B', year: '2024', venue: '',
+    file: 'papers/example.pdf', url: '', summary: 'A general summary of the paper goes here.', tags: 'VR, interaction, example', added: Date.now()
+  };
+  d.nodes[trig].links.push({ paperId: pid, note: 'Pressing the controller trigger made participants interact more and learn more. See results section.' });
+  return d;
+}
+function valid(d) { return d && typeof d === 'object' && d.nodes && d.papers && d.rootId && d.nodes[d.rootId]; }
+function normalize(d) {
+  for (const n of Object.values(d.nodes)) { n.children ||= []; n.links ||= []; n.desc ||= ''; }
+  for (const n of Object.values(d.nodes)) {
+    n.children = n.children.filter(c => d.nodes[c]);
+    n.links = n.links.filter(l => d.papers[l.paperId]);
+  }
+  return d;
+}
+function loadLocal() {
+  try { const d = JSON.parse(localStorage.getItem(LS_KEY)); if (valid(d)) return normalize(d); } catch (e) {}
+  return seed();
+}
+
+function changed(rerender = true) {
+  if (rerender) render(null);
+  clearTimeout(saveTimer);
+  setStatus('Saving…');
+  saveTimer = setTimeout(saveNow, 400);
+}
+async function saveNow() {
+  const json = JSON.stringify(db, null, 2);
+  try { localStorage.setItem(LS_KEY, json); } catch (e) {}
+  if (fileHandle) {
+    try {
+      const w = await fileHandle.createWritable(); await w.write(json); await w.close();
+      setStatus('Saved to ' + fileHandle.name);
+    } catch (e) { setStatus('Could not write ' + fileHandle.name + ' (saved in browser)', true); }
+  } else setStatus('Saved in this browser · use Data ▾ to save a file', true);
+}
+function setStatus(t, warn) { const s = $('#status'); s.textContent = t; s.classList.toggle('warn', !!warn); }
+
+/* IndexedDB: remember the data-file handle between visits (Chrome/Edge) */
+const idb = {
+  open() { return new Promise((res, rej) => { const r = indexedDB.open('research-connector', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k) { const d = await this.open(); return new Promise(res => { const r = d.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }); },
+  async set(k, v) { const d = await this.open(); return new Promise(res => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => res(); }); },
+  async del(k) { const d = await this.open(); return new Promise(res => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = () => res(); t.onerror = () => res(); }); }
+};
+
+/* ---------- tree utils ---------- */
+const N = id => db.nodes[id];
+function pathOf(id) { const p = []; let n = N(id); while (n) { p.unshift(n); n = n.parent ? N(n.parent) : null; } return p; }
+const pathText = id => pathOf(id).map(n => n.name).join(' › ');
+function descendants(id, out = new Set()) { for (const c of N(id).children) { out.add(c); descendants(c, out); } return out; }
+function subtreePapers(id) { const s = new Set(); const walk = i => { N(i).links.forEach(l => s.add(l.paperId)); N(i).children.forEach(walk); }; walk(id); return s.size; }
+function locationsOf(pid) { const out = []; for (const n of Object.values(db.nodes)) for (const l of n.links) if (l.paperId === pid) out.push({ node: n, link: l }); return out; }
+function fileHref(f) {
+  if (!f) return '';
+  f = f.trim();
+  if (/^(https?:|file:)/i.test(f)) return f;
+  if (/^[a-zA-Z]:[\\/]/.test(f)) return 'file:///' + f.replace(/\\/g, '/');
+  if (f.startsWith('/')) return 'file://' + f;
+  return f.replace(/\\/g, '/');
+}
+function urlHref(u) { if (!u) return ''; u = u.trim(); if (/^10\.\d{4,}\//.test(u)) return 'https://doi.org/' + u; if (!/^https?:/i.test(u)) return 'https://' + u; return u; }
+
+/* ---------- layout ---------- */
+function layout(n, W, H) {
+  const top = 44, bottom = 72;
+  const avH = Math.max(200, H - top - bottom);
+  const cx = W / 2, cy = top + avH / 2;
+  const minDim = Math.min(W, avH);
+  const centerSize = clamp(minDim * 0.27, 110, 200);
+  let size = clamp(minDim * 0.2, 74, 140);
+  const halfW = W / 2 - 6, halfH = avH / 2 + 6, ratio = halfW / halfH;
+  const ax = ratio >= 1 ? Math.min(ratio, 1.75) : 1, ay = ratio >= 1 ? 1 : Math.min(1 / ratio, 1.75);
+  let rings;
+  for (;;) {
+    rings = []; let left = n, k = 0;
+    while (left > 0 && k < 6) {
+      const r = centerSize / 2 + size * 0.66 + k * size * 1.08;
+      const rx = r * ax, ry = r * ay;
+      const per = 2 * Math.PI * Math.sqrt((rx * rx + ry * ry) / 2);
+      const cap = Math.max(1, Math.floor(per / (size * 1.1)));
+      const take = Math.min(left, cap);
+      rings.push({ rx, ry, take });
+      left -= take; k++;
+    }
+    const o = rings[rings.length - 1];
+    const fits = !o || (o.rx + size / 2 <= halfW && o.ry + size / 2 <= halfH);
+    if ((left === 0 && fits) || size <= 50) { if (left > 0) o.take += left; break; }
+    size -= 4;
+  }
+  // place points at equal distances along each ellipse (not equal angles), so sides don't crowd
+  const pts = [];
+  rings.forEach((r, k) => {
+    const m = r.take, S = 720, cum = [0], sample = [];
+    const a0 = m === 2 ? Math.PI : -Math.PI / 2;
+    for (let i = 0; i <= S; i++) {
+      const a = a0 + 2 * Math.PI * i / S;
+      sample.push({ x: cx + r.rx * Math.cos(a), y: cy + r.ry * Math.sin(a) });
+      if (i) cum.push(cum[i - 1] + Math.hypot(sample[i].x - sample[i - 1].x, sample[i].y - sample[i - 1].y));
+    }
+    const total = cum[S], step = total / m, off = k % 2 ? step / 2 : 0;
+    let j = 0;
+    for (let i = 0; i < m; i++) {
+      const target = off + i * step;
+      while (j < S && cum[j + 1] < target) j++;
+      pts.push(sample[j]);
+    }
+  });
+  return { cx, cy, centerSize, size, pts };
+}
+
+/* ---------- render ---------- */
+function makeBubble({ x, y, size, cls, kids, color, from, tip, onclick, oncontext }) {
+  const b = h('div', { class: 'bubble ' + (cls || ''), title: tip || null }, kids);
+  b.style.width = b.style.height = size + 'px';
+  b.style.fontSize = clamp(size / 8.6, 11, 17) + 'px';
+  if (color) b.style.setProperty('--c', color);
+  if (from) {
+    b.classList.add('enter'); b.style.left = from.x + 'px'; b.style.top = from.y + 'px';
+    requestAnimationFrame(() => requestAnimationFrame(() => { b.classList.remove('enter'); b.style.left = x + 'px'; b.style.top = y + 'px'; }));
+  } else { b.style.left = x + 'px'; b.style.top = y + 'px'; }
+  if (onclick) b.addEventListener('click', onclick);
+  if (oncontext) b.addEventListener('contextmenu', e => { e.preventDefault(); oncontext(e); });
+  return b;
+}
+
+function render(from) {
+  const stage = $('#stage'), svg = $('#lines');
+  stage.querySelectorAll('.bubble,.empty').forEach(e => e.remove());
+  svg.innerHTML = ''; svg.classList.remove('show');
+  if (!N(cur)) cur = db.rootId;
+  const node = N(cur);
+  renderCrumbs();
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (!W || !H) return;
+  const items = [
+    ...node.children.filter(id => N(id)).map(id => ({ kind: 'node', id })),
+    ...node.links.filter(l => db.papers[l.paperId]).map(l => ({ kind: 'paper', id: l.paperId, note: l.note }))
+  ];
+  const L = layout(items.length, W, H);
+  const C = { x: L.cx, y: L.cy };
+  const animate = !!from;
+  const sel = panelState && (panelState.id || null);
+
+  items.forEach((it, i) => {
+    const p = L.pts[i];
+    svg.append(Object.assign(document.createElementNS('http://www.w3.org/2000/svg', 'line'), {}));
+    const ln = svg.lastChild;
+    ln.setAttribute('x1', C.x); ln.setAttribute('y1', C.y); ln.setAttribute('x2', p.x); ln.setAttribute('y2', p.y);
+    if (it.kind === 'paper') ln.setAttribute('class', 'paperLine');
+  });
+  requestAnimationFrame(() => svg.classList.add('show'));
+
+  // center
+  const nc = node.children.length, np = subtreePapers(cur);
+  stage.append(makeBubble({
+    x: C.x, y: C.y, size: L.centerSize, cls: 'center' + (panelState && panelState.type === 'node' && panelState.id === cur ? ' sel' : ''),
+    color: colorOf(cur), from: animate ? from : null,
+    tip: (node.desc ? node.desc + '\n\n' : '') + 'Click to edit · double-click or Esc to go back up',
+    kids: [h('div', { class: 't' }, node.name), h('div', { class: 'm' }, `${nc} topic${nc === 1 ? '' : 's'} · ${np} paper${np === 1 ? '' : 's'}`), h('div', { class: 'edit' }, '✎ edit')],
+    onclick: () => openPanel({ type: 'node', id: cur }),
+  }));
+  stage.lastChild.addEventListener('dblclick', goUp);
+
+  items.forEach((it, i) => {
+    const p = L.pts[i];
+    if (it.kind === 'node') {
+      const c = N(it.id), k = c.children.length, pp = subtreePapers(it.id);
+      const meta = [k ? `${k} inside` : null, pp ? `${pp} paper${pp === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || 'empty';
+      stage.append(makeBubble({
+        x: p.x, y: p.y, size: L.size, color: colorOf(it.id), from: animate ? C : null,
+        cls: panelState && panelState.type === 'node' && panelState.id === it.id ? 'sel' : '',
+        tip: (c.desc ? c.desc + '\n\n' : '') + 'Click to open · right-click to edit',
+        kids: [h('div', { class: 't' }, c.name), h('div', { class: 'm' }, meta)],
+        onclick: () => navigate(it.id, p),
+        oncontext: () => openPanel({ type: 'node', id: it.id }),
+      }));
+    } else {
+      const pa = db.papers[it.id];
+      const sz = L.size * 1.02;
+      stage.append(makeBubble({
+        x: p.x, y: p.y, size: sz, cls: 'paper' + (sel === it.id ? ' sel' : ''), from: animate ? C : null,
+        tip: pa.title + (it.note ? '\n\n💡 Why I saved it: ' + it.note : ''),
+        kids: [h('div', { class: 't' }, '📄 ' + (pa.title || 'Untitled paper')),
+               sz > 92 && it.note ? h('div', { class: 'why' }, '💡 ' + it.note) : null,
+               h('div', { class: 'm' }, [pa.authors ? pa.authors.split(',')[0].trim() + (pa.authors.includes(',') ? ' et al.' : '') : '', pa.year].filter(Boolean).join(', '))],
+        onclick: () => openPanel({ type: 'paper', id: it.id, ctx: cur }),
+      }));
+    }
+  });
+
+  if (!items.length) {
+    stage.append(h('div', { class: 'empty', style: `left:${C.x}px;top:${C.y + L.centerSize / 2 + 26}px` },
+      'Nothing inside yet. Use ', h('b', {}, '＋ Topic / finding'), ' or ', h('b', {}, '＋ Paper here'), ' below.'));
+  }
+}
+
+function renderCrumbs() {
+  const c = $('#crumbs'); c.innerHTML = '';
+  pathOf(cur).forEach((n, i, arr) => {
+    if (i) c.append(h('span', { class: 'sep' }, '›'));
+    c.append(h('a', { class: i === arr.length - 1 ? 'cur' : '', onclick: () => { if (n.id !== cur) navigate(n.id, null, true); } }, n.name));
+  });
+}
+
+function navigate(id, from, up) {
+  if (!N(id)) return;
+  const stage = $('#stage');
+  cur = id;
+  if (panelState && panelState.type === 'node' && panelState.id !== id) closePanel(false);
+  if (panelState && panelState.type === 'paper') closePanel(false);
+  render(from || { x: stage.clientWidth / 2, y: stage.clientHeight / 2 });
+  try { localStorage.setItem(LS_KEY + '-cur', cur); } catch (e) {}
+}
+function goUp() { const n = N(cur); if (n && n.parent) navigate(n.parent, null, true); }
+
+/* ---------- panel ---------- */
+function openPanel(state) {
+  panelState = state;
+  document.body.classList.add('panelOpen');
+  drawPanel();
+  setTimeout(() => render(null), 320);
+}
+function closePanel(rerender = true) {
+  panelState = null;
+  document.body.classList.remove('panelOpen');
+  if (rerender) setTimeout(() => render(null), 320);
+}
+function setHead(tag, title, isPaper) {
+  const t = $('#pTag'); t.textContent = tag; t.className = 'tag' + (isPaper ? ' paper' : '');
+  $('#pTitle').textContent = title;
+}
+function field(label, value, onInput, o = {}) {
+  const inp = o.multi ? h('textarea', { rows: o.rows || 3, placeholder: o.placeholder || '' }) : h('input', { type: 'text', placeholder: o.placeholder || '' });
+  inp.value = value || '';
+  if (onInput) inp.addEventListener('input', () => onInput(inp.value.trim() === '' ? '' : inp.value));
+  if (o.id) inp.id = o.id;
+  return h('label', { class: 'field' + (o.key ? ' key' : '') }, h('span', {}, label), inp, o.hint ? h('small', {}, o.hint) : null);
+}
+function nodeSelect(excludeSet, selected, placeholder) {
+  const s = h('select', {});
+  if (placeholder) s.append(h('option', { value: '' }, placeholder));
+  const walk = (id, depth) => {
+    if (excludeSet && excludeSet.has(id)) return;
+    s.append(h('option', { value: id }, '\u00a0\u00a0'.repeat(depth) + (depth ? '└ ' : '') + N(id).name));
+    N(id).children.forEach(c => walk(c, depth + 1));
+  };
+  walk(db.rootId, 0);
+  if (selected) s.value = selected;
+  return s;
+}
+
+function drawPanel() {
+  const b = $('#pBody'); b.innerHTML = ''; b.scrollTop = 0;
+  const st = panelState; if (!st) return;
+  if (st.type === 'node') return drawNodePanel(b, st.id);
+  if (st.type === 'paper') return drawPaperPanel(b, st.id, st.ctx);
+  if (st.type === 'newNode') return drawNewNode(b);
+  if (st.type === 'newPaper') return drawNewPaper(b);
+  if (st.type === 'library') return drawLibrary(b);
+}
+
+function drawNodePanel(b, id) {
+  const n = N(id);
+  setHead('Topic', n.name);
+  b.append(
+    field('Name', n.name, v => { n.name = v || 'Untitled'; $('#pTitle').textContent = n.name; changed(); }, { placeholder: 'e.g. Things that improve VR learning' }),
+    field('Notes: what is this about? why does it matter?', n.desc, v => { n.desc = v; changed(false); }, { multi: true, rows: 4, placeholder: 'Write what you were looking for here, so you remember later.' })
+  );
+  const btns = h('div', { class: 'btns' });
+  if (id !== cur) btns.append(h('button', { class: 'primary', onclick: () => navigate(id) }, 'Open ›'));
+  btns.append(h('button', { onclick: () => { if (id !== cur) navigate(id); openPanel({ type: 'newNode', parent: id }); } }, '＋ Topic inside'));
+  btns.append(h('button', { onclick: () => { if (id !== cur) navigate(id); openPanel({ type: 'newPaper', parent: id }); } }, '＋ Paper inside'));
+  b.append(btns);
+
+  if (id !== db.rootId) {
+    const ex = descendants(id); ex.add(id);
+    const sel = nodeSelect(ex, n.parent);
+    sel.addEventListener('change', () => {
+      const np = sel.value; if (!np || np === n.parent) return;
+      N(n.parent).children = N(n.parent).children.filter(c => c !== id);
+      N(np).children.push(id); n.parent = np; changed();
+    });
+    b.append(h('div', { class: 'section' }, h('h3', {}, 'Move under'), sel));
+  }
+
+  if (n.links.length) {
+    const sec = h('div', { class: 'section' }, h('h3', {}, `Papers here (${n.links.length})`));
+    n.links.forEach(l => { const p = db.papers[l.paperId]; if (!p) return;
+      sec.append(h('div', { class: 'libItem', onclick: () => { if (id !== cur) navigate(id); openPanel({ type: 'paper', id: p.id, ctx: id }); } },
+        h('div', { class: 'n' }, p.title), l.note ? h('div', { class: 'p' }, '💡 ' + l.note) : null));
+    });
+    b.append(sec);
+  }
+
+  if (id !== db.rootId) {
+    b.append(h('div', { class: 'section' }, h('button', { class: 'danger', onclick: () => {
+      const d = descendants(id).size;
+      if (!confirm(`Delete “${n.name}”${d ? ` and the ${d} topic(s) inside it` : ''}?\n\nPapers are NOT deleted — they stay in “All papers”.`)) return;
+      const all = descendants(id); all.add(id);
+      N(n.parent).children = N(n.parent).children.filter(c => c !== id);
+      if (all.has(cur)) cur = n.parent;
+      all.forEach(x => delete db.nodes[x]);
+      closePanel(false); changed();
+    } }, 'Delete this topic')));
+  }
+}
+
+function paperFields(b, p, onChange) {
+  const picker = $('#pdfPicker');
+  const fileF = field('PDF file on your PC', p.file, v => { p.file = v; onChange(); }, {
+    placeholder: 'papers/my-paper.pdf   or   C:\\Users\\me\\Papers\\x.pdf',
+    hint: 'Easiest: keep PDFs in the “papers” folder next to index.html and click Choose.' });
+  const fileInput = fileF.querySelector('input');
+  const choose = h('button', { class: 'small', style: 'margin-top:6px', onclick: e => {
+    e.preventDefault();
+    picker.value = '';
+    picker.onchange = () => { const f = picker.files[0]; if (!f) return;
+      p.file = 'papers/' + f.name; fileInput.value = p.file;
+      if (!p.title || p.title === 'Untitled paper') { p.title = f.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' '); const t = b.querySelector('#paperTitle'); if (t) t.value = p.title; }
+      onChange(); };
+    picker.click();
+  } }, 'Choose PDF from papers folder…');
+  fileF.append(choose);
+  b.append(
+    field('Title', p.title, v => { p.title = v; onChange(true); }, { placeholder: 'Paper title', id: 'paperTitle' }),
+    h('div', { class: 'row' },
+      field('Authors', p.authors, v => { p.authors = v; onChange(); }, { placeholder: 'Smith, Lee, …' }),
+      h('div', { style: 'flex:0 0 90px' }, field('Year', p.year, v => { p.year = v; onChange(); }, { placeholder: '2025' }))),
+    field('Journal / conference', p.venue, v => { p.venue = v; onChange(); }, { placeholder: 'optional' }),
+    fileF,
+    field('Web link or DOI', p.url, v => { p.url = v; onChange(); }, { placeholder: 'https://… or 10.1145/…' }),
+    field('General summary of the paper', p.summary, v => { p.summary = v; onChange(); }, { multi: true, rows: 3 }),
+    field('Tags', p.tags, v => { p.tags = v; onChange(); }, { placeholder: 'VR, controller, education' })
+  );
+}
+
+function openButtons(p) {
+  const row = h('div', { class: 'btns' });
+  if (p.file) row.append(h('a', { href: fileHref(p.file), target: '_blank', rel: 'noopener' }, h('button', { class: 'primary' }, '📄 Open PDF')));
+  if (p.url) row.append(h('a', { href: urlHref(p.url), target: '_blank', rel: 'noopener' }, h('button', {}, '🔗 Open link')));
+  if (p.file && location.protocol !== 'file:') row.append(h('div', { class: 'note' }, 'Local PDFs open when this page is opened from your PC (double-click index.html).'));
+  return row;
+}
+
+function drawPaperPanel(b, pid, ctx) {
+  const p = db.papers[pid]; if (!p) return closePanel();
+  setHead('Paper', p.title || 'Untitled paper', true);
+  const link = ctx && N(ctx) ? N(ctx).links.find(l => l.paperId === pid) : null;
+  if (link) {
+    b.append(field(`💡 Why I saved it under “${N(ctx).name}”`, link.note, v => { link.note = v; changed(); },
+      { multi: true, rows: 4, key: true, placeholder: 'What did you find in this paper? e.g. “Pressing the trigger → people interacted and learned more (Study 2, Fig. 4)”' }));
+  }
+  const ob = openButtons(p); b.append(ob);
+  paperFields(b, p, titleChanged => {
+    if (titleChanged) $('#pTitle').textContent = p.title || 'Untitled paper';
+    const nob = openButtons(p); b.replaceChild(nob, b.querySelector('.btns')); changed();
+  });
+
+  const locs = locationsOf(pid);
+  const sec = h('div', { class: 'section' }, h('h3', {}, `Filed under (${locs.length})`));
+  if (!locs.length) sec.append(h('div', { class: 'note' }, 'Not filed under any topic yet.'));
+  locs.forEach(({ node, link: l }) => {
+    sec.append(h('div', { class: 'loc' + (node.id === ctx ? ' here' : '') },
+      h('div', { class: 'lp', onclick: () => { navigate(node.id); openPanel({ type: 'paper', id: pid, ctx: node.id }); } }, pathText(node.id)),
+      l.note ? h('div', { class: 'ln' }, '💡 ' + l.note) : null));
+  });
+  const addSel = nodeSelect(null, '', 'Also file under another topic…');
+  addSel.addEventListener('change', () => {
+    const nid = addSel.value; if (!nid) return;
+    if (N(nid).links.some(l => l.paperId === pid)) { alert('It is already filed there.'); addSel.value = ''; return; }
+    const note = prompt(`Why does this paper matter for “${N(nid).name}”?`, '') ?? '';
+    N(nid).links.push({ paperId: pid, note }); changed(); drawPanel();
+  });
+  sec.append(addSel);
+  b.append(sec);
+
+  const del = h('div', { class: 'section btns' });
+  if (link) del.append(h('button', { onclick: () => {
+    N(ctx).links = N(ctx).links.filter(l => l.paperId !== pid); closePanel(false); changed();
+  } }, 'Remove from this topic'));
+  del.append(h('button', { class: 'danger', onclick: () => {
+    if (!confirm(`Delete “${p.title}” everywhere?\n(The PDF on your PC is not touched.)`)) return;
+    for (const n of Object.values(db.nodes)) n.links = n.links.filter(l => l.paperId !== pid);
+    delete db.papers[pid]; closePanel(false); changed();
+  } }, 'Delete paper everywhere'));
+  b.append(del);
+}
+
+function drawNewNode(b) {
+  const parent = panelState.parent || cur;
+  setHead('New topic', 'Add inside “' + N(parent).name + '”');
+  const draft = { name: '', desc: '' };
+  b.append(
+    field('Name', '', v => draft.name = v, { placeholder: 'e.g. Things that improve VR learning', id: 'newName' }),
+    field('Notes (optional)', '', v => draft.desc = v, { multi: true, placeholder: 'What are you looking for under this topic?' }),
+    h('div', { class: 'note' }, 'Tip: topics can be broad (“VR”), a question (“What improves learning in VR?”) or a specific finding (“Trigger interaction → more learning”). Nest them as deep as you like.'),
+    h('div', { class: 'btns' },
+      h('button', { class: 'primary', onclick: create }, 'Add topic'),
+      h('button', { onclick: () => closePanel() }, 'Cancel'))
+  );
+  const inp = b.querySelector('#newName');
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') create(); });
+  setTimeout(() => inp.focus(), 330);
+  function create() {
+    if (!draft.name.trim()) { inp.focus(); return; }
+    const id = uid();
+    db.nodes[id] = { id, name: draft.name.trim(), desc: draft.desc, parent, children: [], links: [] };
+    N(parent).children.push(id);
+    if (parent !== cur) cur = parent;
+    closePanel(false); changed();
+  }
+}
+
+function drawNewPaper(b) {
+  const parent = panelState.parent || cur;
+  setHead('New paper', 'Add to “' + N(parent).name + '”', true);
+  const draft = { title: '', authors: '', year: '', venue: '', file: '', url: '', summary: '', tags: '' };
+  let note = '';
+  const ids = Object.keys(db.papers);
+  if (ids.length) {
+    const s = h('select', {}, h('option', { value: '' }, '— a new paper —'),
+      ...ids.map(i => db.papers[i]).sort((a, c) => (a.title || '').localeCompare(c.title || '')).map(p => h('option', { value: p.id }, p.title || 'Untitled')));
+    s.addEventListener('change', () => { form.style.display = s.value ? 'none' : ''; });
+    b.append(h('label', { class: 'field' }, h('span', {}, 'Paper already in your library?'), s));
+    b._existing = s;
+  }
+  b.append(field('💡 What did you find in it? (why are you saving it here)', '', v => note = v,
+    { multi: true, rows: 4, key: true, placeholder: 'e.g. Pressing the trigger made people interact more and learn more (Study 2).', id: 'newNote' }));
+  const form = h('div', {});
+  paperFields(form, draft, () => {});
+  b.append(form, h('div', { class: 'btns' },
+    h('button', { class: 'primary', onclick: create }, 'Add paper'),
+    h('button', { onclick: () => closePanel() }, 'Cancel')));
+  setTimeout(() => (b.querySelector('#paperTitle') || b.querySelector('#newNote')).focus(), 330);
+  function create() {
+    let pid = b._existing && b._existing.value;
+    if (!pid) {
+      if (!draft.title.trim() && !draft.file.trim()) { alert('Give the paper a title (or choose its PDF).'); return; }
+      pid = uid();
+      db.papers[pid] = { ...draft, id: pid, title: draft.title.trim() || draft.file.split(/[\\/]/).pop(), added: Date.now() };
+    } else if (N(parent).links.some(l => l.paperId === pid)) { alert('That paper is already here.'); return; }
+    N(parent).links.push({ paperId: pid, note });
+    if (parent !== cur) cur = parent;
+    closePanel(false); changed();
+  }
+}
+
+function drawLibrary(b) {
+  setHead('Library', 'All papers');
+  const list = h('div', {});
+  const f = h('input', { type: 'text', placeholder: 'Filter by title, author, tag…' });
+  f.addEventListener('input', fill);
+  b.append(h('div', { class: 'btns' }, h('button', { class: 'primary', onclick: () => openPanel({ type: 'newPaper', parent: cur }) }, '＋ New paper here')),
+    h('label', { class: 'field' }, f), list);
+  fill();
+  setTimeout(() => f.focus(), 330);
+  function fill() {
+    list.innerHTML = '';
+    const q = f.value.toLowerCase().trim();
+    const ps = Object.values(db.papers).filter(p => !q || [p.title, p.authors, p.tags, p.year, p.summary].join(' ').toLowerCase().includes(q))
+      .sort((a, c) => (c.added || 0) - (a.added || 0));
+    if (!ps.length) list.append(h('div', { class: 'note' }, q ? 'No match.' : 'No papers yet.'));
+    ps.forEach(p => {
+      const locs = locationsOf(p.id);
+      list.append(h('div', { class: 'libItem', onclick: () => {
+        if (locs[0]) { navigate(locs[0].node.id); openPanel({ type: 'paper', id: p.id, ctx: locs[0].node.id }); }
+        else openPanel({ type: 'paper', id: p.id });
+      } }, h('div', { class: 'n' }, p.title || 'Untitled'),
+        h('div', { class: 'p' }, [p.authors, p.year].filter(Boolean).join(' · ') || '—'),
+        h('div', { class: 'p' }, locs.length ? '📍 ' + locs.map(l => l.node.name).join(', ') : '📍 not filed')));
+    });
+  }
+}
+
+/* ---------- search ---------- */
+let selIdx = -1, resultList = [];
+function highlight(text, q) {
+  const t = esc(text); if (!q) return t;
+  const i = text.toLowerCase().indexOf(q); if (i < 0) return t;
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+function snippet(text, q) {
+  const i = text.toLowerCase().indexOf(q); if (i < 0) return '';
+  const s = Math.max(0, i - 40), e = Math.min(text.length, i + q.length + 70);
+  return (s ? '…' : '') + text.slice(s, e) + (e < text.length ? '…' : '');
+}
+function doSearch() {
+  const q = $('#q').value.toLowerCase().trim(), box = $('#results');
+  resultList = []; selIdx = -1; box.innerHTML = '';
+  if (!q) { box.classList.remove('show'); return; }
+  for (const n of Object.values(db.nodes)) {
+    const hay = n.name + ' ' + n.desc;
+    if (hay.toLowerCase().includes(q)) resultList.push({ kind: 'topic', id: n.id, name: n.name, path: pathText(n.id), snip: n.name.toLowerCase().includes(q) ? '' : snippet(n.desc, q), score: n.name.toLowerCase().includes(q) ? 2 : 1 });
+  }
+  for (const p of Object.values(db.papers)) {
+    const locs = locationsOf(p.id);
+    const notes = locs.map(l => l.link.note || '').join(' \u2022 ');
+    const meta = [p.authors, p.year, p.venue, p.tags, p.summary].join(' ');
+    const inTitle = (p.title || '').toLowerCase().includes(q);
+    const inNotes = notes.toLowerCase().includes(q);
+    const inMeta = meta.toLowerCase().includes(q);
+    if (inTitle || inNotes || inMeta) {
+      const loc = locs.find(l => (l.link.note || '').toLowerCase().includes(q)) || locs[0];
+      resultList.push({ kind: 'paper', id: p.id, ctx: loc ? loc.node.id : null, name: p.title || 'Untitled',
+        path: loc ? pathText(loc.node.id) : 'not filed', snip: inTitle ? (loc && loc.link.note ? '💡 ' + loc.link.note : '') : '💡 ' + snippet(inNotes ? notes : meta, q), score: inTitle ? 2 : 1.5 });
+    }
+  }
+  resultList.sort((a, b) => b.score - a.score).splice(30);
+  if (!resultList.length) box.append(h('div', { class: 'res' }, h('div', { class: 'p' }, 'Nothing found.')));
+  resultList.forEach((r, i) => {
+    const el = h('div', { class: 'res', onclick: () => pick(i) });
+    el.innerHTML = `<div class="k ${r.kind}">${r.kind === 'paper' ? '📄 Paper' : '● Topic'}</div><div class="n">${highlight(r.name, q)}</div>` +
+      (r.snip ? `<div class="s">${highlight(r.snip, q)}</div>` : '') + `<div class="p">${esc(r.path)}</div>`;
+    box.append(el);
+  });
+  box.classList.add('show');
+}
+function pick(i) {
+  const r = resultList[i]; if (!r) return;
+  $('#results').classList.remove('show'); $('#q').blur();
+  if (r.kind === 'topic') { navigate(r.id); openPanel({ type: 'node', id: r.id }); }
+  else { if (r.ctx) navigate(r.ctx); openPanel({ type: 'paper', id: r.id, ctx: r.ctx }); }
+}
+$('#q').addEventListener('input', doSearch);
+$('#q').addEventListener('focus', () => { if ($('#q').value) doSearch(); });
+$('#q').addEventListener('keydown', e => {
+  const els = [...document.querySelectorAll('#results .res')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); if (!resultList.length) return;
+    selIdx = (selIdx + (e.key === 'ArrowDown' ? 1 : -1) + resultList.length) % resultList.length;
+    els.forEach((x, i) => x.classList.toggle('sel', i === selIdx));
+    els[selIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') pick(selIdx < 0 ? 0 : selIdx);
+  else if (e.key === 'Escape') { $('#q').value = ''; doSearch(); $('#q').blur(); }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search')) $('#results').classList.remove('show');
+  if (!e.target.closest('.menuWrap')) $('#menu').classList.remove('show');
+});
+
+/* ---------- file menu ---------- */
+const hasFS = 'showSaveFilePicker' in window;
+$('#fileBtn').addEventListener('click', () => $('#menu').classList.toggle('show'));
+$('#menu').addEventListener('click', async e => {
+  const act = e.target.closest('button')?.dataset.act; if (!act) return;
+  $('#menu').classList.remove('show');
+  try {
+    if (act === 'saveAs') {
+      if (!hasFS) { alert('This browser cannot save directly to a file. Use “Export backup” instead (or use Chrome / Edge).'); return; }
+      const hnd = await window.showSaveFilePicker({ suggestedName: 'research-data.json', types: [{ description: 'Research data', accept: { 'application/json': ['.json'] } }] });
+      fileHandle = hnd; await idb.set('fileHandle', hnd); await saveNow();
+    } else if (act === 'openFile') {
+      if (!hasFS) { alert('This browser cannot open files directly. Use “Import backup” instead (or use Chrome / Edge).'); return; }
+      const [hnd] = await window.showOpenFilePicker({ types: [{ description: 'Research data', accept: { 'application/json': ['.json'] } }] });
+      await loadFromHandle(hnd);
+    } else if (act === 'export') {
+      const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: 'research-data-' + new Date().toISOString().slice(0, 10) + '.json' });
+      document.body.append(a); a.click(); a.remove();
+    } else if (act === 'import') {
+      $('#importInput').value = ''; $('#importInput').click();
+    } else if (act === 'reset') {
+      if (!confirm('Clear everything and start with the example again?\n(Export a backup first if you want to keep your data.)')) return;
+      db = seed(); cur = db.rootId; closePanel(false); changed();
+    }
+  } catch (err) { if (err.name !== 'AbortError') alert('Something went wrong: ' + err.message); }
+});
+$('#importInput').addEventListener('change', async () => {
+  const f = $('#importInput').files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!valid(d)) throw new Error('This file is not a Research Connector data file.');
+    if (!confirm('Replace what is on screen with “' + f.name + '”?')) return;
+    db = normalize(d); cur = db.rootId; closePanel(false); changed();
+  } catch (err) { alert(err.message); }
+});
+async function loadFromHandle(hnd) {
+  const d = JSON.parse(await (await hnd.getFile()).text() || 'null');
+  if (!valid(d)) throw new Error('This file is not a Research Connector data file.');
+  db = normalize(d); fileHandle = hnd; await idb.set('fileHandle', hnd);
+  cur = db.rootId; closePanel(false); render({ x: innerWidth / 2, y: innerHeight / 2 });
+  try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (e) {}
+  setStatus('Saved to ' + hnd.name);
+}
+function banner(text, btnText, onBtn) {
+  $('#bannerText').textContent = text; $('#bannerBtn').textContent = btnText;
+  $('#bannerBtn').onclick = async () => { $('#banner').classList.remove('show'); await onBtn(); };
+  $('#banner').classList.add('show');
+}
+$('#bannerX').onclick = () => $('#banner').classList.remove('show');
+
+/* ---------- toolbar, keys, resize ---------- */
+$('#addTopic').onclick = () => openPanel({ type: 'newNode', parent: cur });
+$('#addPaper').onclick = () => openPanel({ type: 'newPaper', parent: cur });
+$('#library').onclick = () => openPanel({ type: 'library' });
+$('#pClose').onclick = () => closePanel();
+document.addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+  if (e.key === '/' && !typing) { e.preventDefault(); $('#q').focus(); }
+  else if (e.key === 'Escape' && !typing) { if (panelState) closePanel(); else goUp(); }
+});
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => render(null), 120); });
+$('#stageWrap').addEventListener('transitionend', e => { if (e.target.id === 'stageWrap') render(null); });
+
+/* ---------- start ---------- */
+db = loadLocal();
+try { const c = localStorage.getItem(LS_KEY + '-cur'); if (c && db.nodes[c]) cur = c; } catch (e) {}
+render({ x: innerWidth / 2, y: innerHeight / 2 });
+saveNow();
+(async () => {
+  if (!hasFS) return;
+  try {
+    const hnd = await idb.get('fileHandle'); if (!hnd) return;
+    const perm = await hnd.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') { await loadFromHandle(hnd); return; }
+    banner('Your data file “' + hnd.name + '” needs permission again.', 'Reconnect', async () => {
+      try { if (await hnd.requestPermission({ mode: 'readwrite' }) === 'granted') await loadFromHandle(hnd); }
+      catch (err) { alert('Could not open it: ' + err.message); }
+    });
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
